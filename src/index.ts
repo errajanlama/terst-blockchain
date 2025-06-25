@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import Counter from "../artifacts/contracts/counter.sol/Counter.json";
 
 declare global {
   interface Window {
@@ -65,30 +66,79 @@ async function run() {
     }
 
     // !!! IMPORTANT: Replace this address with your actual deployed contract address !!!
-    const contractAddress = "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512";
+    // const contractAddress = "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512";
+    const contractAddress = process.env.CONTRACT_ADDRESS || "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512";
+    console.log("Using contract address:", contractAddress);
 
-    const helloWorldContract = new ethers.Contract(
+    // const helloWorldContract = new ethers.Contract(
+    //   contractAddress,
+    //   [
+    //     "function hello() public pure returns (string memory)" // This is known as Inline interfrace.
+    //   ],
+    //   signer
+    // );
+
+    // const counter = new ethers.Contract(
+    //   contractAddress,
+    //   [
+    //     "function count() public",
+    //     "function getCounter() public view returns (uint32)"
+    //   ],
+    //   signer
+    // );
+
+    const counter = new ethers.Contract(
       contractAddress,
-      ["function hello() public pure returns (string memory)"],
+      Counter.abi,
       signer
     );
 
-    try {
-      const message = await helloWorldContract.hello();
-      console.log("hello() returned:", message);
-
-      document.body.innerHTML = `
-        <h1>Hello World Contract Interaction</h1>
-        <div>Contract says: ${message}</div>
-      `;
-    } catch (err) {
-      console.error("Call failed:", err);
-
-      document.body.innerHTML = `
-        <h1>Hello World Contract Interaction</h1>
-        <div style="color: red;">Call failed: ${err.message}</div>
-      `;
+    const el = document.createElement("div");
+    async function setCounter( count?: any ) {
+      el.innerHTML = count || await counter.getCounter();
     }
+    setCounter();
+
+    const button = document.createElement("button");
+    button.innerHTML = "Increment Counter";
+    button.onclick = async () => {
+      try {
+        // await counter.count();
+        const tx = await counter.count();
+        console.log("Transaction sent:", tx);
+        await tx.wait();
+        console.log("Transaction confirmed");
+        await setCounter();
+      } catch (err) {
+        console.error("Error incrementing counter:", err);
+      }
+    };
+
+    counter.on( counter.filters.CounterInc (), async (newCount) => {
+      console.log("Counter incremented:", newCount.toString());
+      await setCounter(newCount); 
+     });
+
+    document.body.appendChild(el);
+    document.body.appendChild(button);
+
+
+    // try {
+    //   const message = await counter.hello();
+    //   console.log("hello() returned:", message);
+
+    //   document.body.innerHTML = ` 
+    //     <h1>Hello World Contract Interaction</h1>
+    //     <div>Contract says: ${message}</div>
+    //   `;
+    // } catch (err) {
+    //   console.error("Call failed:", err);
+
+    //   document.body.innerHTML = `
+    //     <h1>Hello World Contract Interaction</h1>
+    //     <div style="color: red;">Call failed: ${err.message}</div>
+    //   `;
+    // }
   } catch (error) {
     console.error("Error in run function:", error);
   }
